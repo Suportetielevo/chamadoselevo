@@ -1,11 +1,100 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Empresarial</title>
+  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: Arial, sans-serif;
+    }
+    .sidebar {
+      height: 100vh;
+      background-color: #343a40;
+      color: white;
+      position: fixed;
+      width: 250px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    .sidebar h1, .sidebar h2 {
+      font-size: 1.2em;
+      margin-bottom: 20px;
+    }
+    .sidebar h1 span {
+      color: orange;
+    }
+    .sidebar img {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 10px;
+    }
+    .sidebar ul {
+      padding: 0;
+      list-style: none;
+      width: 100%;
+    }
+    .sidebar a {
+      color: white;
+      display: block;
+      padding: 10px;
+      text-decoration: none;
+    }
+    .sidebar a:hover {
+      background-color: #495057;
+    }
+    .content {
+      margin-left: 250px;
+      padding: 20px;
+    }
+    .collapse ul {
+      padding-left: 20px;
+    }
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+      .content {
+        margin-left: 0;
+      }
+    }
+  </style>
 </head>
 <body>
-    Ola Mundo!!
+  <div class="d-flex">
+    <div class="sidebar p-3">
+      <img src="icone.png" alt="Logo da Empresa">
+      <h2>Intranet</h2>
+      <h1><span>ELEVO ENERGY</span></h1>
+      <ul class="list-unstyled">
+        <li><a href="link_para_chamados">Chamados</a></li>
+        <li>
+          <a href="#relatoriosSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Relatórios</a>
+          <ul class="collapse list-unstyled" id="relatoriosSubmenu">
+            <li><a href="http://localhost:8501/">Compras</a></li>
+            <li><a href="#logistica">Logística</a></li>
+            <li><a href="#comercial">Comercial</a></li>
+            <li><a href="#tecnica">Técnica</a></li>
+          </ul>
+        <li><a href="https://sistema.elevosolar.com/">Elevosolar (Web)</a></li>
+        </li>
+      </ul>
+    </div>
+    <div class="content flex-grow-1">
+      <h1>Bem-vindo ao Sistema de Intranet</h1>
+      <p>Selecione uma das opções ao menu para ver detalhes.</p>
+      
+    </div>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
