@@ -75,5 +75,3 @@ st.title('Projetos por Rotas ( Compras )')
 
 # Exibir a tabela com os dados
 st.dataframe(df)
-
-
