@@ -92,6 +92,35 @@ meubd.close()
 # Título do Dashboard
 st.title('Projetos por Rotas ( Compras )')
 
+# Filtragem por mês e ano
+st.sidebar.header("Filtros")
+
+# Seleção do mês
+mes = st.sidebar.selectbox(
+    "Selecione o Mês",
+    ('Todos', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'),
+    index=0
+)
+
+# Seleção do ano
+ano = st.sidebar.slider("Selecione o Ano", min_value=2020, max_value=2024, value=2024)
+
+# Aplicar filtros ao DataFrame
+if mes != 'Todos':
+    mes_numerico = {'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4, 'Maio': 5, 'Junho': 6,
+                   'Julho': 7, 'Agosto': 8, 'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12}[mes]
+    df = df[pd.to_datetime(df['DATA_PGMTO_CONFIRMADO']).dt.month == mes_numerico]
+if ano != 2024:
+    df = df[pd.to_datetime(df['DATA_PGMTO_CONFIRMADO']).dt.year == ano]
+
+if ano != 2023:
+    df = df[pd.to_datetime(df['DATA_PGMTO_CONFIRMADO']).dt.year == ano]
+
+if ano != 2022:
+    df = df[pd.to_datetime(df['DATA_PGMTO_CONFIRMADO']).dt.year == ano]
+
+if ano != 2021:
+    df = df[pd.to_datetime(df['DATA_PGMTO_CONFIRMADO']).dt.year == ano]
 # Exibir a tabela com os dados
 st.dataframe(df)
 

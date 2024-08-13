@@ -1,6 +1,14 @@
 import streamlit as st
 import mysql.connector
 import pandas as pd
+import altair as alt
+import plotly.express as px
+import io
+from io import BytesIO
+from pandas import ExcelWriter
+import xlsxwriter
+import streamlit as st
+from streamlit_option_menu import option_menu
 
 # Conexão com o banco de dados
 meubd = mysql.connector.connect(
@@ -14,38 +22,51 @@ cursor = meubd.cursor()
 
 # Executa a consulta SQL
 cursor.execute("""
-select p.id            as ID_PROJETO,
-       c.name          as CLIENTE,
-       c2.name         as CIDADE_CLIENTE,
-       p2.name         as ESTADO_CLIENTE,
-       u.name          as CONSULTOR,
-       u2.name         as CONSULTOR_EXTERNO,
-       ppt.description as FORMA_DE_PAGAMENTO,
-       fr.VALOR_SOMADO as VALOR_RECEBIMENTO,
-       r.created_at as DATA_FATURAMENTO,
-       pi.created_at   as DATA_PGMTO_CONFIRMADO
-from projects p
-         join clients c on p.client_id = c.id
-         join franchises f on p.franchise_id = f.id
-         join users u on f.user_id = u.id
-         left join outsider_franchises o on p.outsider_franchise_id = o.id
-         left join users u2 on o.user_id = u2.id
-         join cities c2 on c.city_id = c2.id
-         join provinces p2 on c2.province_id = p2.id
-         join financings f2 on p.id = f2.project_id and f2.status_id not in (123)
-         left join (select sum(fr.value) as VALOR_SOMADO, fr.id, fr.financing_id
-                    from financing_recipes fr
-                    where fr.active = 1
-                    group by fr.financing_id) fr on fr.financing_id = f2.id
-         join module_contracts mc on p.id = mc.project_id
-         join revenues r on p.id = r.project_id
-         join project_interactions pi
-              on p.id = pi.project_id and pi.type = 'status_change' and pi.comment = 'PAGAMENTO CONFIRMADO'
-         join project_payment_types ppt on p.payment_type_id = ppt.id
-group by p.id
-order by pi.created_at
-
-""")
+    select p.id                                       as PROJETO,
+            c.name                                     as CLIENTE,
+            u.name                                     as CONSULTOR,
+            fr.VALOR_SOMADO                            as VALOR_RECEBIMENTOS,
+            c2.name                                    as CIDADE,
+            p2.name                                    as ESTADO,
+            p.panel_type                               as PAINEL,
+            sum(gk.panel_count)                         as QTD_PAINEIS,  
+            group_concat(wp.description)               as INVERSOR,
+            l.truck_routes                             as ROTAS,
+            s.name                                     as STATUS_LOGISTICA,
+            rs.name                                     as STATUS_FATURAMENTO,
+            if((f2.sol_facil) = 1, 'SOL FACIL', 'NAO') as SOL_FACIL,
+            t.created_at                               as DATA_PGMTO_CONFIRMADO,
+            datediff(curdate(), l.created_at)          as DIAS_DESDE_ENTROU_LOGISTICA,
+            p.created_at                               as DATA_CRIACAO_PROJETO
+     from projects p
+              join clients c on p.client_id = c.id
+              join franchises f on p.franchise_id = f.id
+              join users u on f.user_id = u.id
+              join financings f2 on p.id = f2.project_id
+              left join (select sum(fr.value) as VALOR_SOMADO, fr.id, fr.financing_id
+                         from financing_recipes fr
+                         where fr.active = 1
+                         group by fr.financing_id) fr on fr.financing_id = f2.id
+              join revenues r on p.id = r.project_id
+              join statuses rs on rs.id = r.status_id
+              left join (select a.created_at, a.auditable_id
+                         from audits a
+                         where a.auditable_type = 'revenue'
+                           and a.new_values like '%{"status_id":"52"%'
+                         group by a.auditable_id) t on t.auditable_id = r.id
+              left join logistics l on p.id = l.project_id
+              left join statuses s on l.status_id = s.id
+              join cities c2 on p.city_id = c2.id
+              join provinces p2 on c2.province_id = p2.id
+              join generator_kit_projects gkp on p.id = gkp.project_id
+              join generator_kits gk on gkp.generator_kit_id = gk.id
+     left join generator_kit_products g on gk.id = g.generator_kit_id
+     left join warehouse_products wp on g.warehouse_product_id = wp.id and wp.type like '%inve%'
+     where l.status_id in (199, 152)
+        or r.status_id in (273)
+     group by p.id, gk.panel_count  -- Agrupando por projeto e panel_count
+     order by l.created_at asc
+     """)
 
 # Obter os dados
 dados = cursor.fetchall()
@@ -53,12 +74,37 @@ dados = cursor.fetchall()
 # Criar um DataFrame do Pandas
 df = pd.DataFrame(dados, columns=[desc[0] for desc in cursor.description])
 
+# Criar um DataFrame do Pandas e converter 'VALOR_RECEBIMENTOS' para numérico
+df = pd.DataFrame(dados, columns=[desc[0] for desc in cursor.description])
+df['VALOR_RECEBIMENTOS'] = pd.to_numeric(df['VALOR_RECEBIMENTOS'], errors='coerce')
+
+# Converter a coluna 'QTD_PAINEIS' para numérico
+df['QTD_PAINEIS'] = pd.to_numeric(df['QTD_PAINEIS'], errors='coerce')
+
 # Fechar a conexão com o banco de dados
 cursor.close()
 meubd.close()
 
 # Título do Dashboard
-st.title('Projetos por Consultor ')
+st.title('Projetos por Rotas ( Compras )')
 
 # Exibir a tabela com os dados
 st.dataframe(df)
+
+# Download como XLSX
+buffer = io.BytesIO()
+writer = pd.ExcelWriter(buffer, engine='xlsxwriter')
+df.to_excel(writer, index=False, sheet_name='Sheet1')
+writer.close()  # Salva o arquivo Excel no buffer
+output = buffer.getvalue()
+
+st.download_button(
+    label="Download dos dados (XLSX)",
+    data=output,
+    file_name='compras.xlsx',
+    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    key='download-xlsx'
+)
+
+
+

@@ -1,6 +1,15 @@
 import streamlit as st
 import mysql.connector
 import pandas as pd
+import altair as alt
+import plotly.express as px
+import io
+from io import BytesIO
+from pandas import ExcelWriter
+import xlsxwriter
+import streamlit as st
+from streamlit_option_menu import option_menu
+
 
 # Conexão com o banco de dados
 meubd = mysql.connector.connect(
@@ -14,22 +23,25 @@ cursor = meubd.cursor()
 
 # Executa a consulta SQL
 cursor.execute("""
-select p.id                                       as PROJETO,
+SELECT p.id                                       as PROJETO,
        c.name                                     as CLIENTE,
        u.name                                     as CONSULTOR,
        fr.VALOR_SOMADO                            as VALOR_RECEBIMENTOS,
        c2.name                                    as CIDADE,
        p2.name                                    as ESTADO,
        p.panel_type                               as PAINEL,
-       (select sum(gk.panel_count))               as QTD_PAINEIS,
+       (select sum(gk.panel_count)
+        from generator_kits gk
+                 join generator_kit_projects gkp on gk.id = gkp.generator_kit_id
+        where gkp.project_id = p.id)              as QTD_PAINEIS,
        group_concat(wp.description)               as INVERSOR,
        l.truck_routes                             as ROTAS,
        s.name                                     as STATUS_LOGISTICA,
        rs.name                                     as STATUS_FATURAMENTO,
        if((f2.sol_facil) = 1, 'SOL FACIL', 'NAO') as SOL_FACIL,
-       t.created_at                               as DATA_PGMTO_CONFIRMADO,
+       DATE(t.created_at)                               as DATA_PGMTO_CONFIRMADO,
        datediff(curdate(), l.created_at)          as DIAS_DESDE_ENTROU_LOGISTICA,
-       p.created_at                               as DATA_CRIACAO_PROJETO
+       DATE(p.created_at)                               as DATA_CRIACAO_PROJETO
 from projects p
          join clients c on p.client_id = c.id
          join franchises f on p.franchise_id = f.id
@@ -52,13 +64,13 @@ from projects p
          join provinces p2 on c2.province_id = p2.id
          join generator_kit_projects gkp on p.id = gkp.project_id
          join generator_kits gk on gkp.generator_kit_id = gk.id
-left join generator_kit_products g on gk.id = g.generator_kit_id
-left join warehouse_products wp on g.warehouse_product_id = wp.id and wp.type like '%inve%'
+         left join generator_kit_products g on gk.id = g.generator_kit_id
+         left join warehouse_products wp on g.warehouse_product_id = wp.id and wp.type like '%inve%'
 where l.status_id in (199, 152)
    or r.status_id in (273)
 group by p.id
 order by l.created_at asc
-""")
+ """)
 
 # Obter os dados
 dados = cursor.fetchall()
@@ -66,12 +78,34 @@ dados = cursor.fetchall()
 # Criar um DataFrame do Pandas
 df = pd.DataFrame(dados, columns=[desc[0] for desc in cursor.description])
 
+# Criar um DataFrame do Pandas e converter 'VALOR_RECEBIMENTOS' para numérico
+df = pd.DataFrame(dados, columns=[desc[0] for desc in cursor.description])
+df['VALOR_RECEBIMENTOS'] = pd.to_numeric(df['VALOR_RECEBIMENTOS'], errors='coerce')
+
+# Converter a coluna 'QTD_PAINEIS' para numérico
+df['QTD_PAINEIS'] = pd.to_numeric(df['QTD_PAINEIS'], errors='coerce')
+
 # Fechar a conexão com o banco de dados
 cursor.close()
 meubd.close()
 
 # Título do Dashboard
-st.title('Projetos por Rotas ( Compras )')
+st.title('Projetos por Rotas ( Logistica )')
 
 # Exibir a tabela com os dados
 st.dataframe(df)
+
+# Download como XLSX
+buffer = io.BytesIO()
+writer = pd.ExcelWriter(buffer, engine='xlsxwriter')
+df.to_excel(writer, index=False, sheet_name='Sheet1')
+writer.close()  # Salva o arquivo Excel no buffer
+output = buffer.getvalue()
+
+st.download_button(
+    label="Download dos dados (XLSX)",
+    data=output,
+    file_name='logistica.xlsx',
+    mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    key='download-xlsx'
+)
