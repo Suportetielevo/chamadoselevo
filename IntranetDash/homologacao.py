@@ -1,65 +1,117 @@
+import streamlit as st
 import mysql.connector
 import pandas as pd
-import streamlit as st
-from datetime import datetime
+import io
+from pandas import ExcelWriter
+import xlsxwriter
 
-# Conexão com o banco de dados
-meubd = mysql.connector.connect(
-    host='monolito-elevo-prod20200927172408180600000028.cv0onkc8ijpz.us-east-2.rds.amazonaws.com',
-    user='monolito',
-    password='1642gEkdWYtQ',
-    database='monolito'
-)
 
-cursor = meubd.cursor()
+class DataHandler:
+    def __init__(self):
+        # Conexão com o banco de dados
+        self.db_config = {
+            'host': 'monolito-elevo-prod20200927172408180600000028.cv0onkc8ijpz.us-east-2.rds.amazonaws.com',
+            'user': 'monolito',
+            'password': '1642gEkdWYtQ',
+            'database': 'monolito'
+        }
 
-# Função para contar projetos por status
-def contar_projetos_por_status(status, ano, mes):
-    cursor.execute(f"""
-        SELECT COUNT(DISTINCT p.id)
+        # Consulta SQL sem filtro de data
+        self.query = """
+        SELECT p.id                                            AS ID_PROJETO,
+               c.name                                          AS CLIENTE,
+               u.name                                          AS HOMOLOGADOR_ATUAL,
+               u3.name                                         AS ADMINISTRADORA_ATUAL,
+               u4.name                                         AS OPERADOR_ATUAL,
+               s.name                                          AS STATUS_ATUAL,
+               DATE_FORMAT(pi.created_at, '%d/%m/%Y %H:%i:%s') AS DATA,
+               u2.name                                         AS 'QUEM COMENTOU OU ALTEROU STATUS',
+               CASE
+                   WHEN pi.type = 'status_change' THEN 'ALTEROU STATUS PARA:'
+                   WHEN pi.type = 'comment' THEN 'COMENTOU:'
+                   END                                         AS 'AÇÃO',
+               fnStripTags(pi.comment)                         AS 'COMENTÁRIOS/ALTERAÇÃO DE STATUS'
         FROM projects p
-        JOIN clients c ON c.id = p.client_id
-        JOIN homolagations h ON h.project_id = p.id
-        JOIN statuses s ON s.id = h.status_id
-        WHERE s.name = '{status}'
-          AND c.name != 'Sociedade Goiana'
-          AND YEAR(h.created_at) = {ano}
-          AND MONTH(h.created_at) = {mes}
-    """)
-    return cursor.fetchone()[0]
+                 JOIN clients c ON c.id = p.client_id
+                 JOIN homolagations h ON h.project_id = p.id
+                 LEFT JOIN users u ON u.id = h.engineer_user_id
+                 JOIN statuses s ON s.id = h.status_id
+                 JOIN project_interactions pi ON pi.project_id = p.id
+                 LEFT JOIN users u2 ON u2.id = pi.user_id
+                 LEFT JOIN users u3 ON h.homologation_administrator_id = u3.id
+                 LEFT JOIN users u4 ON h.user_id = u4.id
+        WHERE (pi.type = 'comment' AND pi.department_id = 3)
+           OR (pi.type = 'status_change' AND pi.department_id = 3)
+        GROUP BY pi.id
+        ORDER BY pi.created_at
+        """
 
-# Título do Dashboard
-st.title('Análise de Projetos - Mês e Ano Selecionados')
+        self.df = None
 
-# Filtro de Data
-st.sidebar.title('Filtro de Data')
-ano_selecionado = st.sidebar.selectbox('Selecione o Ano:', range(2024, datetime.now().year + 1))
-mes_selecionado = st.sidebar.selectbox('Selecione o Mês:', range(1, 13))
+    def connect_to_db(self):
+        """Conecta ao banco de dados e recupera os dados."""
+        try:
+            with mysql.connector.connect(**self.db_config) as conn:
+                self.df = pd.read_sql(self.query, conn)
+        except mysql.connector.Error as e:
+            st.error(f"Erro ao conectar ao MySQL: {e}")
+            self.df = pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
+        return self.df
 
-# Contando projetos em cada status
-st.subheader(f"Contagem de Projetos por Status em {mes_selecionado}/{ano_selecionado}")
+    def apply_filters(self, mes, ano):
+        """Aplica filtros ao DataFrame com base no mês e ano selecionados."""
+        if mes != 'Todos':
+            mes_numerico = {'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4, 'Maio': 5, 'Junho': 6,
+                            'Julho': 7, 'Agosto': 8, 'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12}[mes]
+            self.df = self.df[(pd.to_datetime(self.df['DATA'], format='%d/%m/%Y %H:%M:%S').dt.month == mes_numerico) &
+                              (pd.to_datetime(self.df['DATA'], format='%d/%m/%Y %H:%M:%S').dt.year == ano)]
+        return self.df
 
-# Contar projetos em cada status
-projetos_homologacao = contar_projetos_por_status("SOLICITAÇÃO DE HOMOLOGAÇÃO", ano_selecionado, mes_selecionado)
-projetos_aprovados = contar_projetos_por_status("PROJETO APROVADO", ano_selecionado, mes_selecionado)
-projetos_aguardando_aprovacao = contar_projetos_por_status("AGUARDANDO APROVAÇÃO", ano_selecionado, mes_selecionado)
 
-st.write(f"Projetos em Homologação: {projetos_homologacao}")
-st.write(f"Projetos Aprovados: {projetos_aprovados}")
-st.write(f"Projetos Aguardando Aprovação: {projetos_aguardando_aprovacao}")
+def main():
+    data_handler = DataHandler()
+    df = data_handler.connect_to_db()
 
-# Contar projetos com os status especificados
-st.subheader("Contagem de Projetos por Status no Sistema Hoje (Mês 07)")
-projetos_aguardando_liberacao_crea = contar_projetos_por_status("AGUARD. LIBERAÇAO CREA", datetime.now().year, 7)
-projetos_dados_confirmados = contar_projetos_por_status("DADOS CONFIRMADOS", datetime.now().year, 7)
-projetos_aguardando_pagamento_art = contar_projetos_por_status("AGUARDANDO PAGAMENTO DA ART", datetime.now().year, 7)
-projetos_documentos_anexados = contar_projetos_por_status("DOCUMENTOS ANEXADOS", datetime.now().year, 7)
+    st.title('Relatório de Homologação')
 
-st.write(f"AGUARD. LIBERAÇAO CREA: {projetos_aguardando_liberacao_crea}")
-st.write(f"DADOS CONFIRMADOS: {projetos_dados_confirmados}")
-st.write(f"AGUARDANDO PAGAMENTO DA ART: {projetos_aguardando_pagamento_art}")
-st.write(f"DOCUMENTOS ANEXADOS: {projetos_documentos_anexados}")
+    st.sidebar.header("Filtros")
 
-# Fechar a conexão com o banco de dados
-cursor.close()
-meubd.close()
+    # Seleção do mês e ano
+    mes = st.sidebar.selectbox(
+        "Selecione o Mês",
+        ('Todos', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
+         'Novembro', 'Dezembro'),
+        index=8
+    )
+    ano = st.sidebar.selectbox(
+        "Selecione o Ano",
+        sorted(df['DATA'].apply(lambda x: pd.to_datetime(x, format='%d/%m/%Y %H:%M:%S').year).unique(), reverse=True)
+    )
+
+    df = data_handler.apply_filters(mes, ano)
+
+    # Filtra apenas projetos com data confirmada
+    df = df[~df['DATA'].isna()]
+
+    # Exibir a tabela
+    st.dataframe(df)
+
+    # Download como XLSX
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sheet1')
+        writer.close()
+    output = buffer.getvalue()
+
+    st.download_button(
+        label="Download dos dados (XLSX)",
+        data=output,
+        file_name='homologacao.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        key='download-xlsx'
+    )
+
+
+if __name__ == "__main__":
+    main()
+
