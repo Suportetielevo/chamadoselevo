@@ -5,15 +5,14 @@ import io
 from pandas import ExcelWriter
 import xlsxwriter
 
-
 class DataHandler:
     def __init__(self):
-        # Conexão com o banco de dados
+        # Conexão com o banco de dados usando secrets
         self.db_config = {
-            'host': 'monolito-elevo-prod20200927172408180600000028.cv0onkc8ijpz.us-east-2.rds.amazonaws.com',
-            'user': 'monolito',
-            'password': '1642gEkdWYtQ',
-            'database': 'monolito'
+            'host': st.secrets["database"]["host"],
+            'user': st.secrets["database"]["user"],
+            'password': st.secrets["database"]["password"],
+            'database': st.secrets["database"]["database"]
         }
 
         # Consulta SQL sem filtro de data
@@ -128,5 +127,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
