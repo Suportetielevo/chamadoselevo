@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intranet - Elevo Energy</title>
+  <link rel="icon" type="image/png" href="icone.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    :root {
+      --primary-color: #1a1f2c;
+      --secondary-color: #2d3748;
+      --accent-color: #f6ad55;
+      --text-color: #e2e8f0;
+      --hover-color: #2d3748;
+      --transition: all 0.3s ease;
+    }
+
+    body {
+      background: linear-gradient(135deg, #1a1f2c 0%, #2d3748 100%);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: var(--text-color);
+    }
+
+    .sidebar {
+      height: 100vh;
+      background: rgba(26, 31, 44, 0.95);
+      backdrop-filter: blur(10px);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      position: fixed;
+      width: 280px;
+      padding: 1.5rem;
+      z-index: 1050;
+      transition: var(--transition);
+      overflow-y: auto;
+    }
+
+    .logo-container {
+      background: linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+      border-radius: 1rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .logo-icon {
+      width: 60px;
+      height: 60px;
+      
+      border-radius: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+      transition: var(--transition);
+    }
+
+    .logo-icon:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(246, 173, 85, 0.3);
+    }
+
+    .logo-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 1rem;
+    }
+
+    .sidebar h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--accent-color);
+      margin: 0;
+    }
+
+    .sidebar h1 span {
+      font-size: 1rem;
+      color: var(--text-color);
+      opacity: 0.8;
+    }
+
+    .nav-item {
+      margin-bottom: 0.5rem;
+    }
+
+    .sidebar a {
+      color: var(--text-color);
+      text-decoration: none;
+      padding: 0.8rem 1rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      transition: var(--transition);
+      font-size: 0.95rem;
+    }
+
+    .sidebar a:hover {
+      background: var(--hover-color);
+      transform: translateX(5px);
+    }
+
+    .sidebar a i {
+      margin-right: 0.8rem;
+      font-size: 1.0rem;
+      color: var(--accent-color);
+      width: 24px;
+      text-align: center;
+    }
+
+    .submenu {
+      margin-left: 1rem;
+      border-left: 2px solid var(--accent-color);
+      padding-left: 1rem;
+      margin-top: 0.5rem;
+    }
+
+    .submenu a {
+      padding: 0.6rem 1rem;
+      font-size: 0.9rem;
+    }
+
+    .content {
+      margin-left: 280px;
+      padding: 0;
+      transition: var(--transition);
+      height: calc(100vh - 60px);
+      background: transparent;
+    }
+
+    .content iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 1rem;
+      background: white;
+    }
+
+    .footer {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: calc(100% - 280px);
+      height: 60px;
+      background: var(--primary-color);
+      color: var(--text-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      transition: var(--transition);
+      z-index: 1000;
+    }
+
+    .footer.collapsed {
+      width: 100%;
+    }
+
+    .footer-content {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .footer-logo {
+      height: 30px;
+      width: auto;
+    }
+
+    .footer-divider {
+      height: 20px;
+      width: 1px;
+      background-color: rgba(255, 255, 255, 0.2);
+      margin: 0 1rem;
+    }
+
+    .toggle-btn {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      background: var(--accent-color);
+      color: var(--primary-color);
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.8rem;
+      z-index: 1100;
+      cursor: pointer;
+      display: none;
+      transition: var(--transition);
+    }
+
+    .toggle-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .menu-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      color: var(--accent-color);
+      margin: 1.5rem 0 0.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar {
+        width: 240px;
+      }
+      .content {
+        margin-left: 240px;
+      }
+      .footer {
+        width: calc(100% - 240px);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+        width: 280px;
+      }
+      .sidebar.active {
+        transform: translateX(0);
+      }
+      .content {
+        margin-left: 0;
+      }
+      .footer {
+        width: 100%;
+      }
+      .toggle-btn {
+        display: block;
+      }
+      .submenu {
+        margin-left: 0.5rem;
+      }
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: var(--primary-color);
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: var(--accent-color);
+      border-radius: 10px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .nav-item {
+      animation: fadeIn 0.3s ease forwards;
+      opacity: 0;
+    }
+
+    .nav-item:nth-child(1) { animation-delay: 0.1s; }
+    .nav-item:nth-child(2) { animation-delay: 0.2s; }
+    .nav-item:nth-child(3) { animation-delay: 0.3s; }
+    .nav-item:nth-child(4) { animation-delay: 0.4s; }
+    .nav-item:nth-child(5) { animation-delay: 0.5s; }
+  </style>
+</head>
+<body>
+  <button class="toggle-btn" id="toggleSidebar">
+    <i class="fas fa-bars"></i>
+  </button>
+
+  <div class="sidebar" id="sidebar">
+    <div class="logo-container">
+      <div class="logo-icon">
+        <img src="icone.png" alt="Logo da Empresa">
+      </div>
+      <h2>Intranet</h2>
+      </div>
+
+    <div class="menu-label"></div>
+    <ul class="list-unstyled">
+      <li class="nav-item">
+        <a href="https://chamadoselevo.online/" target="_blank">
+          <i class="fas fa-ticket-alt"></i>
+          <span>Portal de Chamados</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="http://t-levo.com.br/" target="_blank">
+          <i class="fa-solid fa-power-off"></i>
+          <span>T-Levo</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="http://hydrolevo.com.br/" target="_blank">
+          <i class="fas fa-tint"></i>
+          <span>HydroLevo</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="https://elevoenergy.com.br/" target="_blank">
+          <i class="fas fa-bolt"></i>
+          <span>Site Oficial</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="https://sistema.elevosolar.com/" target="_blank">
+          <i class="fas fa-sun"></i>
+          <span>Sistema Elevosolar</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="https://elevo-frontend.lab.smarppy.com/" target="_blank">
+          <i class="fa-solid fa-arrow-up-from-bracket"></i>
+          <span>Sistema Novo (Des.)</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="https://webmail.bs2.com.br/?_task=mail&_mbox=INBOX" target="_blank">
+          <i class="fas fa-envelope"></i>
+          <span>Webmail</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="https://gerenciafacil-elevo.com.br/" target="_blank">
+          <i class="fas fa-sitemap"></i>
+          <span>Gerência-Fácil</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a href="https://www.inclinorte.com.br/" target="_blank">
+          <i class="fas fa-clipboard-check"></i> 
+          <span>Inclinorte</span>
+        </a>
+      </li>
+
+
+      <li class="nav-item">
+        <a href="#relatoriosSubmenu" data-bs-toggle="collapse">
+          <i class="fas fa-chart-line"></i>
+          <span>Relatórios</span>
+          <i class="fas fa-chevron-down ms-auto"></i>
+        </a>
+        <div class="collapse submenu" id="relatoriosSubmenu">
+          <a href="#" data-url="http://192.168.48.42:8501">
+            <i class="fas fa-shopping-cart"></i>
+            <span>Xlsx - Compras</span>
+          </a>
+
+          <a href="#" data-url="https://app.powerbi.com/view?r=eyJrIjoiNmE4OGRkYjQtNTYzYS00YjI0LTgwMDYtZTIwY2MzY2ZhY2QxIiwidCI6ImVmNzM3MTIzLTZmNTUtNDQ0Ni04ZWNhLTg2NjliYjRlNWY4YiJ9">
+            <i class="fas fa-chart-bar"></i>
+            <span>PowerBI - Compras</span>
+          </a>
+
+          <a href="#" data-url="http://192.168.48.42:8502">
+            <i class="fas fa-truck"></i>
+            <span>Logística</span>
+          </a>
+          <a href="#" data-url="http://192.168.48.42:8503">
+            <i class="fas fa-store"></i>
+            <span>Comercial</span>
+          </a>
+          <a href="#" data-url="http://192.168.48.42:8504">
+            <i class="fas fa-clipboard-check"></i>
+            <span>Vistoria</span>
+          </a>
+          <a href="#" data-url="http://192.168.48.42:8505">
+            <i class="fas fa-file-signature"></i>
+            <span>Homologação</span>
+          </a>
+          <a href="#" data-url="http://192.168.48.42:8506">
+            <i class="fas fa-wallet"></i>
+            <span>Financiamento</span>
+          </a>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <div class="content" id="content">
+    <iframe src="" id="iframeContent"></iframe>
+    <footer class="footer" id="footer">
+      <div class="footer-content">
+        <img src="icone.png" alt="Elevo Energy" class="footer-logo">
+        <div class="footer-divider"></div>
+        <span>Todos os direitos reservados - Elevo Energy. 2024©</span>
+      </div>
+      <div class="footer-content">
+        <span>Desenvolvido por TI da ELEVOTech</span>
+        <div class="footer-divider"></div>
+        <span>v2.0.0</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const toggleBtn = document.getElementById('toggleSidebar');
+      const sidebar = document.getElementById('sidebar');
+      const content = document.getElementById('content');
+      const footer = document.getElementById('footer');
+      const iframe = document.getElementById('iframeContent');
+      const links = document.querySelectorAll('.sidebar a[data-url]');
+      const reportSubmenu = document.querySelector('[data-bs-toggle="collapse"]');
+
+      toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+        footer.classList.toggle('collapsed');
+      });
+
+      links.forEach(link => {
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          const url = link.getAttribute('data-url');
+          if (url) {
+            iframe.src = url;
+            if (window.innerWidth <= 768) {
+              sidebar.classList.remove('active');
+              footer.classList.add('collapsed');
+            }
+          }
+        });
+      });
+
+      reportSubmenu.addEventListener('click', (e) => {
+        e.preventDefault();
+        const submenu = document.getElementById('relatoriosSubmenu');
+        const icon = reportSubmenu.querySelector('.fa-chevron-down');
+        submenu.classList.toggle('show');
+        icon.classList.toggle('fa-chevron-up');
+        icon.classList.toggle('fa-chevron-down');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 && 
+            !sidebar.contains(e.target) && 
+            !toggleBtn.contains(e.target) && 
+            sidebar.classList.contains('active')) {
+          sidebar.classList.remove('active');
+          footer.classList.add('collapsed');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

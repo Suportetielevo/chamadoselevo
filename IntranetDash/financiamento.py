@@ -106,27 +106,45 @@ def main():
     mes = st.sidebar.selectbox(
         "Selecione o Mês",
         ('Todos', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'),
-        index=0
+        index=10
     )
     df = data_handler.apply_filters(mes)
 
     # Filtra apenas projetos com data de recebimento confirmada
     df = df[~df['DATA_CRIADO_RECEBIMENTO'].isna()]
 
-    # Exibir a tabela
+    # Exibir valores únicos e quantidades na coluna STATUS_ATUAL
+    status_counts = df['STATUS_ATUAL'].value_counts()
+    st.write("Valores únicos na coluna STATUS_ATUAL com quantidades:")
+    st.dataframe(status_counts)
+
+    # Calcula a quantidade de projetos enviados para aprovação
+    projetos_aprovacao = df[df['STATUS_ATUAL'].str.contains('Aprovação', na=False, case=False)]
+    st.metric("📤 Projetos Enviados para Aprovação", len(projetos_aprovacao))
+
+    # Quantidade de projetos por carteira de atendente
+    carteira_projetos = df.groupby('CARTEIRA')['PROJETO'].nunique().reset_index()
+    carteira_projetos.rename(columns={'PROJETO': 'Quantidade de Projetos'}, inplace=True)
+
+    st.subheader("💼 Quantidade de Projetos por Carteira")
+    st.dataframe(carteira_projetos)
+
+    # Exibir a tabela original
+    st.subheader("📊 Tabela Completa")
     st.dataframe(df)
 
     # Download como XLSX
     buffer = io.BytesIO()
     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='Sheet1')
+        carteira_projetos.to_excel(writer, index=False, sheet_name='Por_Carteira')
         writer.close()
     output = buffer.getvalue()
 
     st.download_button(
-        label="Download dos dados (XLSX)",
+        label="⬇️ Download dos dados (XLSX)",
         data=output,
-        file_name='financiamentos.xlsx',
+        file_name='relatorio_financiamentos.xlsx',
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         key='download-xlsx'
     )

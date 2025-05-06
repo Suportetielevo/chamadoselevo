@@ -1,9 +1,8 @@
 import streamlit as st
-import mysql.connector
+import pymysql
+from pymysql.cursors import DictCursor
 import pandas as pd
 import io
-from pandas import ExcelWriter
-import xlsxwriter
 
 class DataHandler:
     def __init__(self):
@@ -14,8 +13,7 @@ class DataHandler:
             'password': '1642gEkdWYtQ',
             'database': 'monolito'
         }
-
-        # Consulta SQL
+        self.conn = None  # Inicializa a conexão como None
         self.query = """
         SELECT p.id AS PROJETO,
                c.name AS CLIENTE,
@@ -105,65 +103,86 @@ class DataHandler:
         ORDER BY pagamento.pagamento_data
         """
 
-        self.df = None
-
     def connect_to_db(self):
-        """Conecta ao banco de dados e recupera os dados."""
-        try:
-            with mysql.connector.connect(**self.db_config) as conn:
-                self.df = pd.read_sql(self.query, conn)
-                self.df['VALOR_RECEBIMENTOS'] = pd.to_numeric(self.df['VALOR_RECEBIMENTOS'], errors='coerce')
-                self.df['QTD_PAINEIS'] = pd.to_numeric(self.df['QTD_PAINEIS'], errors='coerce')
-        except mysql.connector.Error as e:
-            st.error(f"Erro ao conectar ao MySQL: {e}")
-            self.df = pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
-        return self.df
+        """Conecta ao banco de dados se ainda não estiver conectado."""
+        if self.conn is None:
+            try:
+                self.conn = pymysql.connect(**self.db_config, cursorclass=DictCursor)
+            except pymysql.Error as e:
+                st.error(f"Erro ao conectar ao MySQL: {e}")
+                raise e  # Propaga o erro
 
-    def apply_filters(self, mes):
+    def fetch_data(self):
+        """Recupera os dados do banco de dados."""
+        self.connect_to_db()  # Conecta se ainda não estiver
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(self.query)
+                result = cursor.fetchall()  # Recupera todos os registros de uma vez
+
+                # Cria o DataFrame diretamente do resultado
+                if result:
+                    df = pd.DataFrame(result)
+
+                    # Converte colunas numéricas
+                    df['VALOR_RECEBIMENTOS'] = pd.to_numeric(df['VALOR_RECEBIMENTOS'], errors='coerce')
+                    df['QTD_PAINEIS'] = pd.to_numeric(df['QTD_PAINEIS'], errors='coerce')
+                    return df
+                else:
+                    st.warning("Nenhum dado encontrado para a consulta.")
+                    return pd.DataFrame()  # Retorna um DataFrame vazio
+        except pymysql.Error as e:
+            st.error(f"Erro ao executar a consulta: {e}")
+            return pd.DataFrame()  # Retorna um DataFrame vazio em caso de erro
+
+    def apply_filters(self, df, mes):
         """Aplica filtros ao DataFrame com base no mês selecionado."""
-        if mes != 'Todos':
+        if mes != 'Todos' and not df.empty:
             mes_numerico = {'Janeiro': 1, 'Fevereiro': 2, 'Março': 3, 'Abril': 4, 'Maio': 5, 'Junho': 6,
                             'Julho': 7, 'Agosto': 8, 'Setembro': 9, 'Outubro': 10, 'Novembro': 11, 'Dezembro': 12}[mes]
-            self.df = self.df[pd.to_datetime(self.df['DATA_PAGAMENTO'], format='%d/%m/%Y').dt.month == mes_numerico]
-        return self.df
-
+            df = df[pd.to_datetime(df['DATA_PAGAMENTO'], format='%d/%m/%Y').dt.month == mes_numerico]
+        return df
 
 def main():
     data_handler = DataHandler()
-    df = data_handler.connect_to_db()
 
     st.title('Projetos (Vistoria)')
 
     st.sidebar.header("Filtros")
 
+    # Carrega os dados do banco de dados fora do filtro do mês
+    with st.spinner("Carregando dados..."):
+        df = data_handler.fetch_data()
+
     # Seleção do mês
     mes = st.sidebar.selectbox(
         "Selecione o Mês",
-        ('Todos', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'),
+        ('Todos', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
+         'Novembro', 'Dezembro'),
         index=0
     )
-    df = data_handler.apply_filters(mes)
+    df = data_handler.apply_filters(df.copy(), mes) # Passa uma cópia do DataFrame
 
     # Filtra apenas projetos com data de pagamento confirmada
-    df = df[~df['DATA_PAGAMENTO'].isna()]
+    if not df.empty:
+        df = df[~df['DATA_PAGAMENTO'].isna()]
 
     # Exibir a tabela
     st.dataframe(df)
 
     # Download como XLSX
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Sheet1')
-        writer.close()
-    output = buffer.getvalue()
+    if not df.empty:
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Sheet1')
+        output = buffer.getvalue()
 
-    st.download_button(
-        label="Download dos dados (XLSX)",
-        data=output,
-        file_name='vistoria.xlsx',
-        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        key='download-xlsx'
-    )
+        st.download_button(
+            label="Baixar Dados como XLSX",
+            data=output,
+            file_name="dados_vistoria.xlsx",
+            mime="application/vnd.ms-excel"
+        )
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

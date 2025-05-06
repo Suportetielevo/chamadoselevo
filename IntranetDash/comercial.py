@@ -49,13 +49,17 @@ class Dados:
         self.df = df
         self.df['VALOR_RECEBIMENTO'] = pd.to_numeric(self.df['VALOR_RECEBIMENTO'], errors='coerce')
         self.df['DATA_PGMTO_CONFIRMADO'] = pd.to_datetime(self.df['DATA_PGMTO_CONFIRMADO'])
+        self.df['QTD_PAINEIS'] = pd.to_numeric(self.df['QTD_PAINEIS'], errors='coerce')
 
     def filtrar_dados(self, ano_selecionado, mes_selecionado):
         """Filtra os dados com base no ano e mês selecionados."""
-        return self.df[
-            (self.df['DATA_PGMTO_CONFIRMADO'].dt.year == ano_selecionado) &
-            (self.df['DATA_PGMTO_CONFIRMADO'].dt.month == mes_selecionado)
-        ]
+        if mes_selecionado == "Todos":
+            return self.df[self.df['DATA_PGMTO_CONFIRMADO'].dt.year == ano_selecionado]
+        else:
+            return self.df[
+                (self.df['DATA_PGMTO_CONFIRMADO'].dt.year == ano_selecionado) &
+                (self.df['DATA_PGMTO_CONFIRMADO'].dt.month == mes_selecionado)
+                ]
 
     def calcular_indicadores(self, df_filtrado):
         """Calcula os indicadores de faturamento, ticket médio e clientes atendidos."""
@@ -125,53 +129,72 @@ class Dashboard:
     def carregar_dados(self):
         """Carrega os dados do banco de dados."""
         query = """
-           select p.id              as ID_PROJETO,
-               c.name               as CLIENTE,
-               c2.name              as CIDADE_CLIENTE,
-               p2.name              as ESTADO_CLIENTE,
-               u.name               as CONSULTOR,
-               u2.name              as CONSULTOR_EXTERNO,
-               ppt.description      as FORMA_DE_PAGAMENTO,
-               fr.VALOR_SOMADO      as VALOR_RECEBIMENTO,
-               DATE(t2.created_at)  as DATA_ASSINADO,
-               DATE(pi.created_at)  as DATA_PGMTO_CONFIRMADO
-        from projects p
-             join clients c on p.client_id = c.id
-             join franchises f on p.franchise_id = f.id
-             join users u on f.user_id = u.id
-             left join outsider_franchises o on p.outsider_franchise_id = o.id
-             left join users u2 on o.user_id = u2.id
-             join cities c2 on c.city_id = c2.id
-             join provinces p2 on c2.province_id = p2.id
-             join financings f2 on p.id = f2.project_id and f2.status_id not in (123)
-             left join (select sum(fr.value) as VALOR_SOMADO, fr.id, fr.financing_id
-                        from financing_recipes fr
-                        where fr.active = 1
-                        group by fr.financing_id) fr on fr.financing_id = f2.id
-             join module_contracts mc on p.id = mc.project_id
-             left join (select a.created_at, a.auditable_id
-                        from audits a
-                        where a.auditable_type = 'contract'
-                          and a.new_values like '%{"status_id":"32"%') t2 on t2.auditable_id = mc.id
-             join project_interactions pi
-                  on p.id = pi.project_id and pi.type = 'status_change' and pi.comment = 'PAGAMENTO CONFIRMADO'
-             join project_payment_types ppt on p.payment_type_id = ppt.id
-        group by p.id
-        order by pi.created_at
+            select p.id              as ID_PROJETO,
+       c.name               as CLIENTE,
+       c2.name              as CIDADE_CLIENTE,
+       p2.name              as ESTADO_CLIENTE,
+       u.name               as CONSULTOR,
+       u2.name              as CONSULTOR_EXTERNO,
+       ppt.description      as FORMA_DE_PAGAMENTO,
+       fr.VALOR_SOMADO      as VALOR_RECEBIMENTO,
+       DATE(t2.created_at)  as DATA_ASSINADO,
+       DATE(pi.created_at)  as DATA_PGMTO_CONFIRMADO,
+       p.panel_type                               as PAINEL,
+       (select sum(gk.panel_count)
+        from generator_kits gk
+             join generator_kit_projects gkp on gk.id = gkp.generator_kit_id
+        where gkp.project_id = p.id)              as QTD_PAINEIS,
+       (select group_concat(gk.description)
+        from generator_kits gk
+             join generator_kit_projects gkp on gk.id = gkp.generator_kit_id
+        where gkp.project_id = p.id)              as DESCRICAO_INVERSORES
+        
+from projects p
+     join clients c on p.client_id = c.id
+     join franchises f on p.franchise_id = f.id
+     join users u on f.user_id = u.id
+     left join outsider_franchises o on p.outsider_franchise_id = o.id
+     left join users u2 on o.user_id = u2.id
+     join cities c2 on c.city_id = c2.id
+     join provinces p2 on c2.province_id = p2.id
+     join financings f2 on p.id = f2.project_id and f2.status_id not in (123)
+     left join (select sum(fr.value) as VALOR_SOMADO, fr.id, fr.financing_id
+                from financing_recipes fr
+                where fr.active = 1
+                group by fr.financing_id) fr on fr.financing_id = f2.id
+     join module_contracts mc on p.id = mc.project_id
+     left join (select a.created_at, a.auditable_id
+                from audits a
+                where a.auditable_type = 'contract'
+                  and a.new_values like '%{"status_id":"32"%') t2 on t2.auditable_id = mc.id
+     join project_interactions pi
+          on p.id = pi.project_id and pi.type = 'status_change' and pi.comment = 'PAGAMENTO CONFIRMADO'
+     join project_payment_types ppt on p.payment_type_id = ppt.id
+group by p.id
+order by pi.created_at;
+
         """
         self.dados = Dados(self.bd.buscar_dados(query))
 
     def exibir_dashboard(self):
         """Exibe o dashboard no Streamlit."""
         st.title('Vendas Totais - Dep. Comercial')
-        st.sidebar.title('Filtros')
 
         ano_atual = datetime.now().year
         mes_atual = datetime.now().month
-        ano_selecionado = st.sidebar.selectbox('Selecione o ano:', self.dados.df['DATA_PGMTO_CONFIRMADO'].dt.year.unique(), index=ano_atual - 2020)
-        mes_selecionado = st.sidebar.selectbox('Selecione o mês:', range(1, 13), index=mes_atual - 1)
 
-        df_filtrado = self.dados.filtrar_dados(ano_selecionado, mes_selecionado)
+        # Opção "Todos" para os anos
+        anos_unicos = self.dados.df['DATA_PGMTO_CONFIRMADO'].dt.year.unique()
+        anos_selecao = ["Todos"] + list(anos_unicos)
+        ano_selecionado = st.sidebar.selectbox('Selecione o ano:', anos_selecao, index=len(anos_selecao) - 1)
+
+        mes_selecionado = st.sidebar.selectbox('Selecione o mês:', ["Todos"] + list(range(1, 13)), index=mes_atual)
+
+        if ano_selecionado == "Todos":
+            df_filtrado = self.dados.df
+        else:
+            df_filtrado = self.dados.filtrar_dados(ano_selecionado, mes_selecionado)
+
         faturamento_total, ticket_medio, clientes_atendidos = self.dados.calcular_indicadores(df_filtrado)
 
         st.table(
@@ -208,6 +231,115 @@ class Dashboard:
             file_name='comercial.xlsx',
             mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             key='download-xlsx'
+        )
+
+        # ---- Consultor Interno ----
+        st.header('Relatório de Consultores')
+        st.write('Dados dos Consultores:  ')
+
+        st.subheader('Consultor Interno')
+        query_consultor_interno = """
+            select f.id                                    as ID_CONSULTOR,
+                   concat(u.name, ' (', f.nickname, ')')   as CONSULTOR,
+                   c2.name                                 as CIDADE_CONSULTOR,
+                   p2.name                                 as ESTADO_CONSULTOR,
+                   ifnull(f.mobile_number, f.phone_number) as CELULAR_CONSULTOR,
+                   (select sum(fr.VALOR_SOMADO))           as VALOR_RECEBIMENTO,
+                   (select count(distinct (r.id)))         as QTD_PROJETOS_PGMTO
+            from projects p
+                 join franchises f on p.franchise_id = f.id
+                 join users u on f.user_id = u.id
+                 join cities c2 on f.city_id = c2.id
+                 join provinces p2 on c2.province_id = p2.id
+                 join financings f2 on p.id = f2.project_id
+                 left join (select sum(fr.value) as VALOR_SOMADO, fr.id, fr.financing_id
+                            from financing_recipes fr
+                            where fr.active = 1
+                            group by fr.financing_id) fr on fr.financing_id = f2.id
+                 join revenues r on p.id = r.project_id
+                 join (select project_id,
+                              MIN(created_at) AS pagamento_data
+                       FROM project_interactions
+                       WHERE type = 'status_change'
+                         AND comment = 'PAGAMENTO CONFIRMADO'
+                       GROUP BY project_id) pagamento ON pagamento.project_id = r.project_id
+            where p.outsider_franchise_id is null
+              and pagamento.pagamento_data between '2025-01-01 00:00:00' and '2025-12-31 23:59:59'
+              and f2.status_id not in (123)
+            group by p.franchise_id
+            order by VALOR_RECEBIMENTO desc
+        """
+        df_consultor_interno = self.bd.buscar_dados(query_consultor_interno)
+        st.dataframe(df_consultor_interno)
+
+        buffer_interno = io.BytesIO()
+        with pd.ExcelWriter(buffer_interno, engine='xlsxwriter') as writer:
+            df_consultor_interno.to_excel(writer, index=False, sheet_name='Sheet1')
+            writer.close()
+        output_interno = buffer_interno.getvalue()
+
+        st.download_button(
+            label="Download Relatório Consultor Interno (XLSX)",
+            data=output_interno,
+            file_name='consultor_interno.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            key='download-interno'
+        )
+
+        # ---- Consultor Externo ----
+        st.subheader('Consultor Externo desde 2020 ')
+        query_consultor_externo = """
+            SELECT
+    CONCAT(u.name, ' (', f.nickname, ')') AS CONSULTOR,
+    c2.name AS CIDADE_CONSULTOR,
+    p2.name AS ESTADO_CONSULTOR,
+    IFNULL(f.mobile_number, f.phone_number) AS CELULAR_CONSULTOR,
+    SUM(fr.VALOR_SOMADO) AS VALOR_RECEBIMENTO,
+    COUNT(DISTINCT r.id) AS QTD_PROJETOS_PGMTO
+FROM projects p
+    JOIN outsider_franchises f ON p.outsider_franchise_id = f.id
+    JOIN users u ON f.user_id = u.id
+    JOIN cities c2 ON f.city_id = c2.id
+    JOIN provinces p2 ON c2.province_id = p2.id
+    JOIN financings f2 ON p.id = f2.project_id
+    LEFT JOIN (
+        SELECT
+            fr.financing_id,
+            SUM(fr.value) AS VALOR_SOMADO
+        FROM financing_recipes fr
+        WHERE fr.active = 1
+        GROUP BY fr.financing_id
+    ) fr ON fr.financing_id = f2.id
+    JOIN revenues r ON p.id = r.project_id
+    JOIN (
+        SELECT
+            project_id,
+            MIN(created_at) AS pagamento_data
+        FROM project_interactions
+        WHERE type = 'status_change'
+            AND comment = 'PAGAMENTO CONFIRMADO'
+        GROUP BY project_id
+    ) pagamento ON pagamento.project_id = r.project_id
+WHERE pagamento.pagamento_data BETWEEN '2020-01-01 00:00:00' AND '2025-12-30 23:59:59'
+    AND f2.status_id NOT IN (123)
+GROUP BY CONSULTOR
+ORDER BY VALOR_RECEBIMENTO DESC;
+        """
+        df_consultor_externo = self.bd.buscar_dados(query_consultor_externo)
+        st.dataframe(df_consultor_externo)
+
+        buffer_externo = io.BytesIO()
+        with pd.ExcelWriter(buffer_externo, engine='xlsxwriter') as writer:
+            df_consultor_externo.to_excel(writer, index=False, sheet_name='Sheet1')
+            writer.close()
+        output_externo = buffer_externo.getvalue()
+
+        st.download_button(
+            label="Download Relatório Consultor Externo (XLSX)",
+            data=output_externo,
+            file_name='consultor_externo.xlsx',
+            mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            key='download-externo'
         )
 
 

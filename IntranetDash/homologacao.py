@@ -81,7 +81,7 @@ def main():
         "Selecione o Mês",
         ('Todos', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
          'Novembro', 'Dezembro'),
-        index=8
+        index=1
     )
     ano = st.sidebar.selectbox(
         "Selecione o Ano",

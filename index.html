@@ -4,105 +4,82 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Intranet - Elevo Energy</title>
-  <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="icon" type="image/png" href="icone.png">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
-    body {
-      background-color: #f8f9fa;
-      font-family: Arial, sans-serif;
+    :root {
+      --primary-color: #1a1f2c;
+      --secondary-color: #2d3748;
+      --accent-color: #f6ad55;
+      --text-color: #e2e8f0;
+      --hover-color: #2d3748;
+      --transition: all 0.3s ease;
     }
-    .sidebar {
-      height: 100vh;
-      background-color: #343a40;
-      color: white;
-      position: fixed;
-      width: 250px;
+
+    body {
+      background: linear-gradient(135deg, #1a1f2c 0%, #2d3748 100%);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: var(--text-color);
+      margin: 0;
+    }
+
+    .main-content {
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
+      height: 100vh;
       text-align: center;
+      padding: 2rem;
     }
-    .sidebar h1, .sidebar h2 {
-      font-size: 1.2em;
-      margin-bottom: 20px;
-    }
-    .sidebar h1 span {
-      color: orange;
-    }
-    .sidebar img {
-      width: 50px;
-      height: 50px;
-      margin-bottom: 10px;
-    }
-    .sidebar ul {
-      padding: 0;
-      list-style: none;
+
+    .message-box {
+      background-color: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 2.5rem;
+      border-radius: 1rem;
+      max-width: 600px;
       width: 100%;
     }
-    .sidebar a {
-      color: white;
-      display: block;
-      padding: 10px;
+
+    .message-box h1 {
+      color: var(--accent-color);
+      margin-bottom: 1rem;
+      font-size: 2rem;
+    }
+
+    .message-box p {
+      font-size: 1.2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .btn-access {
+      background-color: var(--accent-color);
+      color: #1a1f2c;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-weight: bold;
+      border-radius: 0.5rem;
+      transition: var(--transition);
       text-decoration: none;
     }
-    .sidebar a:hover {
-      background-color: #495057;
-    }
-    .content {
-      margin-left: 250px;
-      padding: 20px;
-    }
-    .collapse ul {
-      padding-left: 20px;
-    }
-    @media (max-width: 768px) {
-      .sidebar {
-        width: 100%;
-        height: auto;
-        position: relative;
-      }
-      .content {
-        margin-left: 0;
-      }
+
+    .btn-access:hover {
+      background-color: #e2953c;
+      color: #fff;
     }
   </style>
 </head>
 <body>
-  <div class="d-flex">
-    <div class="sidebar p-3">
-      <img src="icone.png" alt="Logo da Empresa">
-      <h2>Intranet</h2>
-      <h1><span>ELEVO ENERGY</span></h1>
-
-      <ul class="list-unstyled">
-        <li><a href="https://chamadoselevo.online/"target="_blank">Chamados</a></li>
-        <li>
-          <a href="#relatoriosSubmenu" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Relatórios</a>
-          <ul class="collapse list-unstyled" id="relatoriosSubmenu">
-            <li>
-              <li><a href="http://192.168.48.42:8501" target="_blank">Compras</a></li>
-              <li><a href="http://192.168.48.42:8502" target="_blank">Logistica</a></li>
-              <li><a href="http://192.168.48.42:8503" target="_blank">Comercial</a></li>
-              <li><a href="http://192.168.48.42:8504" target="_blank">Vistoria</a></li>
-              <li><a href="http://192.168.48.42:8505" target="_blank">Homologacao</a></li>   
-              <li><a href="http://192.168.48.42:8506" target="_blank">Financiamento</a></li>         
-          </ul>
-        </li>
-        <li><a href="https://sistema.elevosolar.com/" target="_blank">Elevosolar (Web)</a></li>
-      </ul>
-    </div>
-
-    <div class="content flex-grow-1">
-      <h1>Bem-vindo ao Sistema de Intranet</h1>
-      <p>Selecione uma das opções ao menu para ver detalhes.</p>
-      
+  <div class="main-content">
+    <div class="message-box">
+      <h1>Intranet Desativada</h1>
+      <p>Este acesso foi descontinuado.<br>Conheça nosso novo portal no link abaixo:</p>
+      <a href="https://www.portalelevo.com.br" target="_blank" class="btn-access">
+        Acessar Novo Portal
+      </a>
     </div>
   </div>
-  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
 </html>
-
-
-
